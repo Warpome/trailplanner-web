@@ -112,7 +112,7 @@
         btn.textContent = r.name + ' (' + r.distance + ' km)';
         btn.addEventListener('click', () => {
           if (currentLayer) map.removeLayer(currentLayer);
-          currentLayer = L.polyline(r.coords, {color: 'red', weight: 5}).addTo(map);
+          currentLayer = L.polyline(r.coords, {color: 'red', weight: 6, opacity: 1.0, dashArray: '5,10'}).addTo(map);
           map.fitBounds(currentLayer.getBounds(), {padding: [20, 20]});
           document.getElementById('routeInfo').innerHTML =
             '<p><strong>' + r.name + '</strong></p>' +
@@ -126,7 +126,8 @@
       if (!map) {
         map = L.map('map').setView([48.993, 1.132], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 18
+          maxZoom: 18,
+          attribution: '© OpenStreetMap contributors'
         }).addTo(map);
       }
 
