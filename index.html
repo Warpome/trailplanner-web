@@ -94,7 +94,9 @@
         const btn=document.createElement('button');btn.className='route-btn';btn.textContent=r.name+' ('+r.distance+' km)';
         btn.addEventListener('click',()=>{
           if(currentLayer) map.removeLayer(currentLayer);
-          currentLayer=L.polyline(r.coords,{color:'#3A7D44'}).addTo(map);map.fitBounds(currentLayer.getBounds());
+          if (currentLayer) map.removeLayer(currentLayer);
+currentLayer = L.polyline(r.coords, {color: '#3A7D44'}).addTo(map);
+map.fitBounds(currentLayer.getBounds(), {padding: [20, 20]});
           document.getElementById('routeInfo').innerHTML=
             '<p><strong>'+r.name+'</strong></p>'+
             '<p>Forêt: '+r.pct.Foret+'%, Chemin: '+r.pct.Chemin+'%, Route: '+r.pct.Route+'%</p>';
@@ -103,7 +105,7 @@
         });
         summaryDiv.append(btn);
       });
-      if(!map){map=L.map('map').setView(matched[0].coords[0],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);}
+      if(!map){map=L.map('map').setView([48.993, 1.132], 15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);}
       document.getElementById('formPage').style.display='none';document.getElementById('resultPage').style.display='block';
     });
     document.getElementById('resetBtn').addEventListener('click',()=>{document.getElementById('formPage').style.display='block';document.getElementById('resultPage').style.display='none';});
