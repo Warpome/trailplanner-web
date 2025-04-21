@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TrailPlanner Démo V6</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    body { margin:0; font-family:sans-serif; background:#F5F1E8; }
+    .container { max-width:480px; margin:auto; padding:16px; }
+    header { display:flex; justify-content:space-between; align-items:center;
+      background:#3A7D44; color:white; padding:12px; border-radius:8px; }
+    header h1 { margin:0; font-size:1.5rem; }
+    header button { background:#A5C99E; border:none; padding:8px 12px;
+      border-radius:8px; cursor:pointer; }
+    form, #resultPage { background:white; padding:16px; margin-top:16px;
+      border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    label { display:block; margin-bottom:12px; }
+    input, select { width:100%; padding:8px; margin-top:4px;
+      border:1px solid #ccc; border-radius:4px; }
+    button[type="submit"], #resetBtn, .route-btn, #importGpxBtn {
+      width:100%; padding:10px; background:#3A7D44; color:white;
+      border:none; border-radius:8px; font-size:1rem; cursor:pointer; margin-top:8px;
+    }
+    #map, #stravaMapPlaceholder {
+      height:200px; margin-top:12px; border-radius:8px;
+    }
+    .route-btn { text-align:left; background:#A5C99E; margin-bottom:6px; }
+    #routeInfo { background:#FFF; padding:12px; margin-top:8px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>TrailPlanner</h1>
+      <button id="startBtn">Créer mon parcours</button>
+    </header>
+    <main id="formPage">
+      <form id="trailForm">
+        <label>Distance min (km) :<input type="number" id="minDist" placeholder="Min" required></label>
+        <label>Distance max (km) :<input type="number" id="maxDist" placeholder="Max" required></label>
+        <label>D+ minimum (m) :<input type="number" id="elev" required></label>
+        <label>Surface :
+          <select id="surface"><option>Forêt</option><option>Chemin</option><option>Mixte</option></select>
+        </label>
+        <label>Rayon (km) :<input type="number" id="radius" required></label>
+        <label>Ajouter des segments Strava particuliers ?</label>
+        <label><input type="radio" name="useSegments" value="yes" id="useSegYes"> Oui</label>
+        <label><input type="radio" name="useSegments" value="no" id="useSegNo" checked> Non</label>
+        <div id="stravaSection" style="display:none;">
+          <div id="stravaMapPlaceholder">[Carte Strava ici]</div>
+          <div id="segmentChooser"><p>Choisissez un segment :</p>
+            <button type="button" class="segment-btn" data-name="Montée du Bois">Montée du Bois</button>
+            <button type="button" class="segment-btn" data-name="Colline Verte">Colline Verte</button>
+          </div>
+          <div id="chosenSegments"><p>Segments sélectionnés :</p></div>
+        </div>
+        <button type="submit">Valider / Générer</button>
+      </form>
+    </main>
+    <section id="resultPage" style="display:none;">
+      <h2>Parcours possibles</h2>
+      <div id="summary"></div>
+      <div id="map"></div>
+      <div id="routeInfo"></div>
+      <button id="importGpxBtn" style="display:none;">Importer le tracé GPX</button>
+      <button id="resetBtn">Retour</button>
+    </section>
+  </div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const dummyRoutes = [
+      { name:'Forêt Tour Nord', distance:12, elev:480, surface:'Forêt', coords:[[45,5],[45.01,5.02],[45.02,5.015]], pct:{Foret:80, Chemin:15, Route:5}, gpxUrl:'#' },
+      { name:'Chemin Vallée', distance:14, elev:520, surface:'Chemin', coords:[[45.03,5.01],[45.04,5.03],[45.05,5.025]], pct:{Foret:20, Chemin:75, Route:5}, gpxUrl:'#' },
+      { name:'Mixte Est', distance:10, elev:450, surface:'Mixte', coords:[[45.02,5.04],[45.03,5.05],[45.035,5.06]], pct:{Foret:50, Chemin:40, Route:10}, gpxUrl:'#' },
+      { name:'Boucle du Lac', distance:16, elev:600, surface:'Forêt', coords:[[45.01,5.06],[45.015,5.065],[45.02,5.07]], pct:{Foret:70, Chemin:20, Route:10}, gpxUrl:'#' },
+      { name:'Sentier Sud', distance:11, elev:500, surface:'Chemin', coords:[[45.025,5.02],[45.03,5.025],[45.035,5.03]], pct:{Foret:30, Chemin:60, Route:10}, gpxUrl:'#' }
+    ];
+    function scoreRoute(r,c){let dMid=(c.minDist+c.maxDist)/2;let dScore=Math.abs(r.distance-dMid);let eScore=Math.abs(r.elev-c.elev);let sScore=r.surface===c.surface?0:5;return dScore+eScore/50+sScore;}
+    let map, currentLayer;
+    document.getElementById('useSegYes').addEventListener('change', ()=>{document.getElementById('stravaSection').style.display='block';});
+    document.getElementById('useSegNo').addEventListener('change', ()=>{document.getElementById('stravaSection').style.display='none';});
+    document.querySelectorAll('.segment-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const name=btn.dataset.name;const div=document.createElement('div');const span=document.createElement('span');
+      span.textContent=name+' (répétitions): ';const inp=document.createElement('input');inp.type='number';inp.min='1';inp.value='1';
+      div.append(span,inp);document.getElementById('chosenSegments').append(div);
+    }));
+    document.getElementById('trailForm').addEventListener('submit',function(e){
+      e.preventDefault();
+      const c={minDist:parseFloat(this.minDist.value),maxDist:parseFloat(this.maxDist.value),elev:parseFloat(this.elev.value),surface:this.surface.value};
+      let matched=dummyRoutes.filter(r=>r.distance>=c.minDist&&r.distance<=c.maxDist&&Math.abs(r.elev-c.elev)<=200);
+      matched.sort((a,b)=>scoreRoute(a,c)-scoreRoute(b,c));
+      const summaryDiv=document.getElementById('summary');
+      summaryDiv.innerHTML='';
+      matched.forEach((r,i)=>{
+        const btn=document.createElement('button');btn.className='route-btn';btn.textContent=r.name+' ('+r.distance+' km)';btn.addEventListener('click',()=>{
+          if(currentLayer) map.removeLayer(currentLayer);
+          currentLayer=L.polyline(r.coords,{color:'#3A7D44'}).addTo(map);map.fitBounds(currentLayer.getBounds());
+          document.getElementById('routeInfo').innerHTML=
+            '<p><strong>'+r.name+'</strong></p>'+
+            '<p>Forêt: '+r.pct.Foret+'%, Chemin: '+r.pct.Chemin+'%, Route: '+r.pct.Route+'%</p>';
+          document.getElementById('importGpxBtn').style.display='block';
+          document.getElementById('importGpxBtn').onclick=()=>window.open(r.gpxUrl,'_blank');
+        });
+        summaryDiv.append(btn);
+      });
+      if(!map){map=L.map('map').setView(matched[0].coords[0],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);}
+      document.getElementById('formPage').style.display='none';document.getElementById('resultPage').style.display='block';
+    });
+    document.getElementById('resetBtn').addEventListener('click',()=>{document.getElementById('formPage').style.display='block';document.getElementById('resultPage').style.display='none';});
+    document.getElementById('startBtn').addEventListener('click',()=>{document.getElementById('formPage').scrollIntoView({behavior:'smooth'});});
+  </script>
+</body>
+</html>
