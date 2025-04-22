@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TrailPlanner – Suggestions détaillées</title>
+  <title>TrailPlanner – Suggestions</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
     body { margin:0; font-family:sans-serif; background:#F5F1E8; }
@@ -15,8 +14,8 @@
     form, #resultPage { background:white; padding:16px; margin-top:16px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
     label { display:block; margin-bottom:12px; }
     input, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:4px; }
-    button, .route-btn { width:100%; padding:10px; color:white; border:none; border-radius:8px; font-size:1rem; cursor:pointer; margin-top:8px; text-align:left; }
-    button { background:#3A7D44; }
+    button, .route-btn { width:100%; padding:10px; border:none; border-radius:8px; font-size:1rem; cursor:pointer; margin-top:8px; text-align:left; }
+    button { background:#3A7D44; color:white; }
     .route-btn { background:#A5C99E; color:black; }
     #map { height:200px; margin-top:12px; border-radius:8px; }
     #routeInfo { background:#FFF; padding:12px; margin-top:8px; border-radius:6px; }
@@ -27,7 +26,7 @@
   <div class="container">
     <header>
       <h1>TrailPlanner</h1>
-      <button id="startBtn">Créer mon parcours</button>
+      <button id="startBtn" type="button">Créer mon parcours</button>
     </header>
     <main id="formPage">
       <form id="trailForm">
@@ -48,23 +47,24 @@
       <div id="summary"></div>
       <div id="map"></div>
       <div id="routeInfo"></div>
-      <button id="resetBtn">Retour</button>
+      <button id="resetBtn" type="button">Retour</button>
     </section>
   </div>
+
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     const dummyRoutes = [
-      { name: "Montée du Bois du Nord", distance: 1.83, elev: 122, surface: "Forêt",
-        coords: [[48.99001,1.12831],[48.99072,1.12910],[48.99142,1.12985],[48.99205,1.13060],[48.99332,1.13215]]
+      { name:"Montée du Bois du Nord", distance:1.83, elev:122, surface:"Forêt",
+        coords:[[48.99001,1.12831],[48.99072,1.12910],[48.99142,1.12985],[48.99205,1.13060],[48.99332,1.13215]]
       },
-      { name: "Forêt de Tourneville - Sacquenville", distance: 1.2, elev: 60, surface: "Forêt",
-        coords: [[49.02600,1.08820],[49.02530,1.08850],[49.02460,1.08910],[49.02380,1.08960]]
+      { name:"Forêt de Tourneville - Sacquenville", distance:1.2, elev:60, surface:"Forêt",
+        coords:[[49.02600,1.08820],[49.02530,1.08850],[49.02460,1.08910],[49.02380,1.08960]]
       }
     ];
 
     let map, currentLayer;
 
-    document.getElementById('trailForm').addEventListener('submit', function(e) {
+    document.getElementById('trailForm').addEventListener('submit', function(e){
       e.preventDefault();
       const c = {
         minDist: parseFloat(this.minDist.value),
@@ -73,72 +73,78 @@
         surface: this.surface.value
       };
 
+      // Génération des suggestions avec répétitions
       const midDist = (c.minDist + c.maxDist) / 2;
       const suggestions = dummyRoutes.map(r => {
         const reps = Math.ceil(c.elev / r.elev);
-        const totalDist = r.distance * reps;
-        const totalElev = r.elev * reps;
+        const totalDist  = r.distance * reps;
+        const totalElev  = r.elev * reps;
         const score = Math.abs(totalDist - midDist)
-                      + Math.abs(totalElev - c.elev) / 50
-                      + (r.surface === c.surface ? 0 : 5);
+                    + Math.abs(totalElev - c.elev) / 50
+                    + (r.surface === c.surface? 0 : 5);
         return { r, reps, totalDist, totalElev, score };
-      }).sort((a, b) => a.score - b.score);
+      }).sort((a,b) => a.score - b.score);
 
-      const valid = suggestions.filter(s => s.totalDist >= c.minDist && s.totalDist <= c.maxDist);
+      // Séparer valides / extras
+      const valid  = suggestions.filter(s => s.totalDist >= c.minDist && s.totalDist <= c.maxDist);
       const extras = suggestions.filter(s => s.totalDist > c.maxDist);
 
+      // Affichage
       const summary = document.getElementById('summary');
       summary.innerHTML = '';
-      if (valid.length) {
+      if(valid.length){
         summary.innerHTML += '<h3>Parcours valides</h3>';
         valid.forEach(s => {
           const btn = document.createElement('button');
+          btn.type = 'button';
           btn.className = 'route-btn';
-          btn.innerHTML = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`;
+          btn.textContent = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`;
           btn.addEventListener('click', () => showRoute(s));
           summary.appendChild(btn);
         });
       }
-      if (extras.length) {
+      if(extras.length){
         summary.innerHTML += '<h3>Autres options</h3>';
         extras.forEach(s => {
+          const diff = (s.totalDist - c.maxDist).toFixed(2);
           const btn = document.createElement('button');
+          btn.type = 'button';
           btn.className = 'route-btn';
-          const diffDist = (s.totalDist - c.maxDist).toFixed(2);
           btn.innerHTML = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`
-                        + ` <em>(${diffDist} km de trop)</em>`;
+                        + ` <em>(${diff} km de trop)</em>`;
           btn.addEventListener('click', () => showRoute(s));
           summary.appendChild(btn);
         });
       }
 
-      if (!map) {
-        map = L.map('map').setView([48.993,1.132], 14);
+      // Initialisation Leaflet
+      if(!map){
+        map = L.map('map').setView([48.993,1.132],14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 18,
-          attribution: '© OpenStreetMap contributors'
+          maxZoom:18, attribution:'© OpenStreetMap contributors'
         }).addTo(map);
       }
       setTimeout(() => map.invalidateSize(), 300);
 
+      // Basculer l'affichage
       document.getElementById('formPage').style.display = 'none';
       document.getElementById('resultPage').style.display = 'block';
     });
 
-    function showRoute(s) {
-      if (currentLayer) map.removeLayer(currentLayer);
-      currentLayer = L.polyline(s.r.coords, { color: 'red', weight: 4 }).addTo(map);
-      map.fitBounds(currentLayer.getBounds(), { padding: [20,20] });
+    function showRoute(s){
+      if(currentLayer) map.removeLayer(currentLayer);
+      currentLayer = L.polyline(s.r.coords, { color:'red', weight:4 }).addTo(map);
+      map.fitBounds(currentLayer.getBounds(), { padding:[20,20] });
       document.getElementById('routeInfo').innerHTML =
-        `<p><strong>${s.reps}× ${s.r.name}</strong></p>`
-        + `<p>Total : ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+</p>`;
+        `<p><strong>${s.reps}× ${s.r.name}</strong></p>` +
+        `<p>Total : ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+</p>`;
     }
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
       document.getElementById('formPage').style.display = 'block';
       document.getElementById('resultPage').style.display = 'none';
     });
-    document.getElementById('startBtn').addEventListener('click', () => {
+    document.getElementById('startBtn').addEventListener('click', ()=>{
       document.getElementById('formPage').scrollIntoView({behavior:'smooth'});
     });
   </script>
