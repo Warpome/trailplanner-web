@@ -136,7 +136,7 @@
 
       if (!map) {
         map = L.map('map').setView([48.993, 1.132], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
           maxZoom: 18,
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
@@ -144,6 +144,7 @@
 
       document.getElementById('formPage').style.display = 'none';
       document.getElementById('resultPage').style.display = 'block';
+      setTimeout(() => map.invalidateSize(), 200);
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
