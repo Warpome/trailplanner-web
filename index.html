@@ -18,11 +18,13 @@
     label { display:block; margin-bottom:12px }
     input, select { width:100%; padding:8px; margin-top:4px;
       border:1px solid #ccc; border-radius:4px }
-    .route-btn { 
+    button, .route-btn {
       display:block; width:100%; padding:10px; margin-bottom:6px;
-      background:#A5C99E; color:black; border-radius:8px; cursor:pointer;
-      font-size:1rem; text-align:left;
+      border:none; border-radius:8px; font-size:1rem; cursor:pointer;
+      text-align:left;
     }
+    button[type="submit"] { background:#3A7D44; color:white }
+    .route-btn { background:#A5C99E; color:black }
     #map { height:200px; margin-top:12px; border-radius:8px }
     #routeInfo { background:white; padding:12px; margin-top:8px; border-radius:6px }
     h3 { margin-top:16px; color:#3A7D44 }
@@ -36,23 +38,15 @@
     </header>
     <main id="formPage">
       <form id="trailForm">
-        <label>Distance min (km) :
-          <input type="number" id="minDist" placeholder="Min" required>
-        </label>
-        <label>Distance max (km) :
-          <input type="number" id="maxDist" placeholder="Max" required>
-        </label>
-        <label>D+ minimum (m) :
-          <input type="number" id="elev" required>
-        </label>
+        <label>Distance min (km) :<input type="number" id="minDist" placeholder="Min" required></label>
+        <label>Distance max (km) :<input type="number" id="maxDist" placeholder="Max" required></label>
+        <label>D+ minimum (m) :<input type="number" id="elev" required></label>
         <label>Surface :
           <select id="surface">
             <option>Forêt</option><option>Chemin</option><option>Mixte</option>
           </select>
         </label>
-        <label>Rayon (km) :
-          <input type="number" id="radius" placeholder="Rayon">
-        </label>
+        <label>Rayon (km) :<input type="number" id="radius" placeholder="Rayon"></label>
         <button type="submit">Valider / Générer</button>
       </form>
     </main>
@@ -103,33 +97,36 @@
       const valid  = suggestions.filter(s=>s.totalDist>=c.minDist && s.totalDist<=c.maxDist);
       const extras = suggestions.filter(s=>s.totalDist>c.maxDist);
 
+      // Affichage
       const summary = document.getElementById('summary');
       summary.innerHTML = "";
 
       if(valid.length){
         summary.innerHTML += '<h3>Parcours valides</h3>';
         valid.forEach(s=>{
-          const d = document.createElement('div');
-          d.className = "route-btn";
-          d.textContent = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`;
-          d.onclick = ()=> showRoute(s);
-          summary.appendChild(d);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'route-btn';
+          btn.textContent = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`;
+          btn.addEventListener('click', ()=> showRoute(s));
+          summary.appendChild(btn);
         });
       }
       if(extras.length){
         summary.innerHTML += '<h3>Autres options</h3>';
         extras.forEach(s=>{
           const diff = (s.totalDist - c.maxDist).toFixed(2);
-          const d = document.createElement('div');
-          d.className = "route-btn";
-          d.innerHTML = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`
-                      + ` <em>(${diff} km de trop)</em>`;
-          d.onclick = ()=> showRoute(s);
-          summary.appendChild(d);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'route-btn';
+          btn.innerHTML = `${s.reps}× ${s.r.name} → ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+`
+                        + ` <em>(${diff} km de trop)</em>`;
+          btn.addEventListener('click', ()=> showRoute(s));
+          summary.appendChild(btn);
         });
       }
 
-      // Initialisation / rafraîchissement de Leaflet
+      // Initialisation Leaflet
       if(!map){
         map = L.map('map').setView([48.993,1.132],14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -138,6 +135,7 @@
       }
       setTimeout(()=>map.invalidateSize(),300);
 
+      // Basculer l'affichage
       document.getElementById('formPage').style.display='none';
       document.getElementById('resultPage').style.display='block';
     });
@@ -148,16 +146,16 @@
       map.fitBounds(currentLayer.getBounds(),{padding:[20,20]});
       document.getElementById('routeInfo').innerHTML =
         `<p><strong>${s.reps}× ${s.r.name}</strong></p>`+
-        `<p>Total : ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+</p>`;
+        `<p>Total : ${s.totalDist.toFixed(2)} km, ${s.totalElev} m D+</p>`;
     }
 
-    document.getElementById('resetBtn').onclick = ()=>{
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
       document.getElementById('formPage').style.display='block';
       document.getElementById('resultPage').style.display='none';
-    };
-    document.getElementById('startBtn').onclick = ()=>{
+    });
+    document.getElementById('startBtn').addEventListener('click', ()=>{
       document.getElementById('formPage').scrollIntoView({behavior:'smooth'});
-    };
+    });
   </script>
 </body>
 </html>
